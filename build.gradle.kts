@@ -44,7 +44,13 @@ base {
 
 java.toolchain.languageVersion.set(JavaLanguageVersion.of(17))
 
-println("Java: ${System.getProperty("java.version")}, JVM: ${System.getProperty("java.vm.version")} (${System.getProperty("java.vendor")}), Arch: ${System.getProperty("os.arch")}")
+println(
+    "Java: ${System.getProperty("java.version")}, JVM: ${System.getProperty("java.vm.version")} (${
+        System.getProperty(
+            "java.vendor"
+        )
+    }), Arch: ${System.getProperty("os.arch")}"
+)
 minecraft {
     mappings(mappingsChannel, mappingsVersion)
 
@@ -80,7 +86,15 @@ minecraft {
 
         create("data") {
             workingDirectory(project.file("run/data"))
-            args("--mod", modId, "--all", "--output", file("src/generated/resources/"), "--existing", file("src/main/resources/"))
+            args(
+                "--mod",
+                modId,
+                "--all",
+                "--output",
+                file("src/generated/resources/"),
+                "--existing",
+                file("src/main/resources/")
+            )
         }
     }
 }
@@ -108,19 +122,19 @@ dependencies {
 // See https://docs.gradle.org/current/dsl/org.gradle.language.jvm.tasks.ProcessResources.html
 tasks.withType<ProcessResources>().configureEach {
     val replaceProperties = mapOf(
-            "minecraft_version" to minecraftVersion,
-            "minecraft_version_range" to minecraftVersionRange,
-            "neo_version" to neoVersion,
-            "neo_version_range" to neoVersionRange,
-            "loader" to loader,
-            "loader_version_range" to loaderVersionRange,
-            "mod_id" to modId,
-            "mod_name" to modName,
-            "mod_license" to modLicense,
-            "mod_version" to modVersion,
-            "mod_authors" to modAuthors,
-            "mod_description" to modDescription,
-            "pack_format_number" to packFormatNumber
+        "minecraft_version" to minecraftVersion,
+        "minecraft_version_range" to minecraftVersionRange,
+        "neo_version" to neoVersion,
+        "neo_version_range" to neoVersionRange,
+        "loader" to loader,
+        "loader_version_range" to loaderVersionRange,
+        "mod_id" to modId,
+        "mod_name" to modName,
+        "mod_license" to modLicense,
+        "mod_version" to modVersion,
+        "mod_authors" to modAuthors,
+        "mod_description" to modDescription,
+        "pack_format_number" to packFormatNumber
     )
     inputs.properties(replaceProperties)
 
@@ -132,7 +146,8 @@ tasks.withType<ProcessResources>().configureEach {
 
 tasks.jar.configure {
     manifest {
-        attributes(mapOf(
+        attributes(
+            mapOf(
                 "Specification-Title" to modId,
                 "Specification-Vendor" to modAuthors,
                 "Specification-Version" to "1", // We are version 1 of ourselves
@@ -140,7 +155,8 @@ tasks.jar.configure {
                 "Implementation-Version" to modVersion,
                 "Implementation-Vendor" to modAuthors,
                 "Implementation-Timestamp" to SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssZ").format(Date())
-        ))
+            )
+        )
     }
 
     finalizedBy("reobfJar")
