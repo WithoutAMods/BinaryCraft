@@ -107,6 +107,7 @@ sourceSets {
 }
 
 repositories {
+    mavenCentral()
     maven("https://thedarkcolour.github.io/KotlinForForge/")
 }
 
@@ -114,6 +115,16 @@ dependencies {
     minecraft("net.neoforged:forge:${minecraftVersion}-${neoVersion}")
 
     implementation("thedarkcolour:kotlinforforge:4.4.0")
+
+
+
+    testImplementation(platform("org.junit:junit-bom:5.10.0"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testImplementation("io.mockk:mockk:1.13.5")
+}
+
+tasks.test {
+    useJUnitPlatform()
 }
 
 // This block of code expands all declared replace properties in the specified resource targets.

@@ -1,19 +1,10 @@
 package eu.withoutaname.mod.binarycraft.logic.api
 
-interface Connection {
+interface CircuitConnection {
     val id: Int
+    val state: State
 }
 
-interface InputConnection : Connection
-
-interface OutputConnection : Connection
-
-interface InternalConnection : InputConnection, OutputConnection
-
-interface ExternalInput : InputConnection {
-    fun setState(state: State)
-}
-
-interface ExternalOutput : OutputConnection {
-    fun getState(): State
+interface CircuitInput : CircuitConnection {
+    override var state: State
 }

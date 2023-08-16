@@ -1,11 +1,10 @@
 package eu.withoutaname.mod.binarycraft.logic.api
 
 interface Circuit {
-    fun createInput(): InputConnection
-    fun createOutput(): OutputConnection
-    fun createConnectionWire(): InternalConnection
+    fun createInput(): CircuitInput
+    fun createConnection(): CircuitConnection
 
-    fun addGate(gate: Gate, inputWires: List<InputConnection>, outputWires: List<OutputConnection>): GateID
+    fun addGate(gate: Gate, inputWires: List<CircuitConnection>, outputWires: List<CircuitConnection>): GateID
     fun removeGate(gateID: GateID)
 }
 
