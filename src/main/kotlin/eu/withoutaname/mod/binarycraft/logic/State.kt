@@ -1,4 +1,4 @@
-package eu.withoutaname.mod.binarycraft.logic.api
+package eu.withoutaname.mod.binarycraft.logic
 
 enum class State {
     INVALID,

@@ -1,141 +1,151 @@
 package eu.withoutaname.mod.binarycraft.logic
 
-import eu.withoutaname.mod.binarycraft.logic.api.Circuit
-import eu.withoutaname.mod.binarycraft.logic.api.Gate
-import eu.withoutaname.mod.binarycraft.logic.api.State
-import io.mockk.*
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
 
 class CircuitTest {
-    private fun getCircuit(): Circuit {
-        TODO()
+
+    private class InputGateBehavior(initialState: State = State.INVALID) : GateBehavior() {
+        override val inputCount = 0
+        override val outputCount = 1
+        var state = initialState
+            set(value) {
+                field = value
+                updateTrigger()
+            }
+
+        override fun calculateOutputs(inputStates: List<State>): List<State> {
+            return listOf(state)
+        }
+    }
+
+    private class RepeaterGateBehavior : GateBehavior() {
+        override val inputCount = 1
+        override val outputCount = 1
+
+        override fun calculateOutputs(inputStates: List<State>): List<State> {
+            return inputStates
+        }
     }
 
     @Test
-    fun testExternalInputs() {
-        val circuit = getCircuit()
-        val inputA = circuit.createInput()
-        val inputB = circuit.createInput()
-        val inputC = circuit.createInput()
-        val inputs = listOf(inputA, inputB, inputC)
-        inputs.forEach { it.state = State.LOW }
+    fun testInputGate() {
+        val circuit = CircuitImpl()
+        val input = InputGateBehavior(State.LOW)
+        val connection = circuit.createConnection()
 
-        val gate = mockk<Gate>()
-        every { gate.inputCount } returns 3
-        every { gate.outputCount } returns 0
-        every { gate.update(any()) } answers { emptyList() }
+        val inputId = circuit.addGate(input)
+        circuit.setGateOutput(inputId, 0, connection)
 
-        circuit.addGate(gate, inputs, emptyList())
-        inputA.state = State.HIGH
-        inputC.state = State.HIGH
-        inputA.state = State.Z
-        inputB.state = State.INVALID
-
-        verifyOrder {
-            gate.update(listOf(State.LOW, State.LOW, State.LOW))
-            gate.update(listOf(State.HIGH, State.LOW, State.LOW))
-            gate.update(listOf(State.HIGH, State.LOW, State.HIGH))
-            gate.update(listOf(State.Z, State.LOW, State.HIGH))
-            gate.update(listOf(State.Z, State.INVALID, State.HIGH))
-        }
-
-        verify(atLeast = 0) {
-            gate.inputCount
-            gate.outputCount
-        }
-
-        confirmVerified(gate)
-
-    }
-
-    private fun mockRepeaterGate(): Gate {
-        val gate = mockk<Gate>()
-        every { gate.inputCount } returns 1
-        every { gate.outputCount } returns 1
-        val inputSlot = slot<List<State>>()
-        every { gate.update(capture(inputSlot)) } answers { listOf(inputSlot.captured[0]) }
-        return gate
-    }
-
-    @Test
-    fun testWithRepeaterGate() {
-        val circuit = getCircuit()
-        val input = circuit.createInput()
-        val output = circuit.createConnection()
-        input.state = State.LOW
-
-        val gate = mockRepeaterGate()
-
-        circuit.addGate(gate, listOf(input), listOf(output))
-        assertEquals(State.LOW, output.state)
+        assertEquals(State.LOW, circuit.getState(connection))
         State.entries.forEach {
             input.state = it
-            assertEquals(it, output.state)
+            assertEquals(it, circuit.getState(connection))
         }
     }
 
     @Test
-    fun testWithTwoParallelRepeaterGates() {
-        val circuit = getCircuit()
-        val input = circuit.createInput()
-        val output = circuit.createConnection()
-        input.state = State.LOW
+    fun testConnectionWithTwoInputs() {
+        val circuit = CircuitImpl()
+        val inputA = InputGateBehavior(State.LOW)
+        val inputB = InputGateBehavior(State.LOW)
+        val connection = circuit.createConnection()
 
-        val gateA = mockRepeaterGate()
-        val gateB = mockRepeaterGate()
+        val inputAId = circuit.addGate(inputA)
+        circuit.setGateOutput(inputAId, 0, connection)
+        val inputBId = circuit.addGate(inputB)
+        circuit.setGateOutput(inputBId, 0, connection)
 
-        circuit.addGate(gateA, listOf(input), listOf(output))
-        circuit.addGate(gateB, listOf(input), listOf(output))
-        assertEquals(State.LOW, output.state)
-        State.entries.forEach {
-            input.state = it
-            assertEquals(it, output.state)
-        }
-    }
-
-    @Test
-    fun testTwoRepeaterGatesSameOutput() {
-        val circuit = getCircuit()
-        val inputA = circuit.createInput()
-        val inputB = circuit.createInput()
-        val output = circuit.createConnection()
-        inputA.state = State.LOW
-        inputB.state = State.LOW
-
-        val gateA = mockRepeaterGate()
-        val gateB = mockRepeaterGate()
-
-        circuit.addGate(gateA, listOf(inputA), listOf(output))
-        circuit.addGate(gateB, listOf(inputB), listOf(output))
-        assertEquals(State.LOW, output.state)
+        assertEquals(State.LOW, circuit.getState(connection))
 
         inputA.state = State.Z
         State.entries.forEach {
             inputB.state = it
-            assertEquals(it, output.state)
+            assertEquals(it, circuit.getState(connection))
         }
 
         inputA.state = State.INVALID
         State.entries.forEach {
             inputB.state = it
-            assertEquals(State.INVALID, output.state)
+            assertEquals(State.INVALID, circuit.getState(connection))
         }
 
         inputA.state = State.LOW
         inputB.state = State.LOW
-        assertEquals(State.LOW, output.state)
+        assertEquals(State.LOW, circuit.getState(connection))
 
         inputA.state = State.LOW
         inputB.state = State.HIGH
-        assertEquals(State.INVALID, output.state)
+        assertEquals(State.INVALID, circuit.getState(connection))
 
         inputA.state = State.HIGH
         inputB.state = State.LOW
-        assertEquals(State.INVALID, output.state)
+        assertEquals(State.INVALID, circuit.getState(connection))
 
         inputA.state = State.HIGH
         inputB.state = State.HIGH
-        assertEquals(State.HIGH, output.state)
+        assertEquals(State.HIGH, circuit.getState(connection))
+    }
+
+    @Test
+    fun testWithRepeaterGate() {
+        val circuit = CircuitImpl()
+        val input = InputGateBehavior(State.LOW)
+        val inConnection = circuit.createConnection()
+        val outConnection = circuit.createConnection()
+
+        val inputId = circuit.addGate(input)
+        circuit.setGateOutput(inputId, 0, inConnection)
+        val repeaterId = circuit.addGate(RepeaterGateBehavior())
+        circuit.setGateInput(repeaterId, 0, inConnection)
+        circuit.setGateOutput(repeaterId, 0, outConnection)
+
+        assertEquals(State.LOW, circuit.getState(outConnection))
+        State.entries.forEach {
+            input.state = it
+            assertEquals(it, circuit.getState(outConnection))
+        }
+    }
+
+    @Test
+    fun testWithTwoParallelRepeaterGates() {
+        val circuit = CircuitImpl()
+        val input = InputGateBehavior(State.LOW)
+        val inConnection = circuit.createConnection()
+        val outConnection = circuit.createConnection()
+
+        val inputId = circuit.addGate(input)
+        circuit.setGateOutput(inputId, 0, inConnection)
+        val repeaterAId = circuit.addGate(RepeaterGateBehavior())
+        circuit.setGateInput(repeaterAId, 0, inConnection)
+        circuit.setGateOutput(repeaterAId, 0, outConnection)
+        val repeaterBId = circuit.addGate(RepeaterGateBehavior())
+        circuit.setGateInput(repeaterBId, 0, inConnection)
+        circuit.setGateOutput(repeaterBId, 0, outConnection)
+
+        assertEquals(State.LOW, circuit.getState(outConnection))
+        State.entries.forEach {
+            input.state = it
+            assertEquals(it, circuit.getState(outConnection))
+        }
+    }
+
+    @Test
+    fun testCyclicRepeaterGate() {
+        val circuit = CircuitImpl()
+        val input = InputGateBehavior(State.LOW)
+        val connection = circuit.createConnection()
+
+        val inputId = circuit.addGate(input)
+        circuit.setGateOutput(inputId, 0, connection)
+        val repeaterId = circuit.addGate(RepeaterGateBehavior())
+        circuit.setGateInput(repeaterId, 0, connection)
+        circuit.setGateOutput(repeaterId, 0, connection)
+
+        assertEquals(State.LOW, circuit.getState(connection))
+        State.entries.forEach {
+            input.state = it
+            assertEquals(it, circuit.getState(connection))
+        }
     }
 }
