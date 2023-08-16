@@ -1,7 +1,5 @@
 package eu.withoutaname.mod.binarycraft.logic
 
-import java.util.*
-
 class CircuitImpl : Circuit {
     private val connections = IdList<Connection>()
     private val gates = IdList<Gate>()
@@ -36,74 +34,118 @@ class CircuitImpl : Circuit {
         gates[gateId].setOutput(outputIndex, connection?.let { connections[it.id] })
     }
 
-    private fun getNumIncomingInSubTree(gate: Gate): MutableMap<Connection, Int> {
-        val numIncoming = mutableMapOf<Connection, Int>()
-        val queue = LinkedList<Connection>()
-        gate.outputs.forEach {
-            it?.let {
-                numIncoming[it] = 0
-                queue.add(it)
-            }
-        }
-        while (queue.isNotEmpty()) {
-            val connection = queue.remove()
+    private data class ConnectionData(
+        val connection: Connection,
+        val discoveryTime: Int,
+        var finishedTime: Int? = null,
+        val cyclicDependencies: MutableSet<Connection> = mutableSetOf()
+    )
+
+    private fun analyzeGraph(gate: Gate): MutableMap<Connection, ConnectionData> {
+        val data = mutableMapOf<Connection, ConnectionData>()
+
+        fun dfs(connection: Connection, time: Int): Int {
+            var t = time
+            data[connection] = ConnectionData(connection, t++)
             connection.forEachDependentConnection {
-                if (numIncoming[it] == null) {
-                    numIncoming[it] = 1
-                    queue.add(it)
+                if (it !in data) {
+                    t = dfs(it, t)
                 } else {
-                    numIncoming[it] = numIncoming[it]!! + 1
-                }
-            }
-        }
-        return numIncoming
-    }
-
-    private fun update(gate: Gate) {
-        val numIncoming = getNumIncomingInSubTree(gate)
-        updateAcyclic(numIncoming, mutableSetOf())
-    }
-
-    private fun updateAcyclic(numIncoming: MutableMap<Connection, Int>, updated: MutableSet<Gate>) {
-        val queue = LinkedList<Connection>()
-        numIncoming.filter { (_, count) -> count == 0 }.forEach { (connection, _) ->
-            numIncoming.remove(connection)
-            queue.add(connection)
-        }
-        while (queue.isNotEmpty()) {
-            val connection = queue.remove()
-            val changed = connection.calculateState(updated)
-            if (changed) {
-                connection.forEachDependentConnection {
-                    numIncoming[it] = numIncoming[it]!! - 1
-                    if (numIncoming[it] == 0) {
-                        numIncoming.remove(it)
-                        queue.add(it)
-                    }
-                }
-            } else {
-                val queueNotNeeded = LinkedList<Connection>()
-                queueNotNeeded.add(connection)
-                while (queueNotNeeded.isNotEmpty()) {
-                    queueNotNeeded.remove().forEachDependentConnection {
-                        numIncoming[it] = numIncoming[it]!! - 1
-                        if (numIncoming[it] == 0) {
-                            numIncoming.remove(it)
-                            queueNotNeeded.add(it)
+                    data[it]!!.apply {
+                        if (finishedTime == null) {
+                            cyclicDependencies.add(connection)
                         }
                     }
                 }
             }
+            data[connection]!!.finishedTime = t++
+            return t
         }
-        if (numIncoming.isNotEmpty()) {
-            updateCyclic(numIncoming, updated)
+
+        var t = 0
+        gate.outputs.forEach {
+            it?.let { t = dfs(it, t) }
+        }
+        return data
+    }
+
+    private fun update(gate: Gate) {
+        val dataMap = analyzeGraph(gate)
+        val dataList = dataMap.values.sortedByDescending { it.finishedTime!! }.toMutableList()
+        updateAcyclic(dataMap, dataList)
+    }
+
+    private fun updateAcyclic(dataMap: MutableMap<Connection, ConnectionData>, dataList: MutableList<ConnectionData>) {
+        var updated = mutableSetOf<Gate>()
+        while (dataList.isNotEmpty()) {
+            if (dataList.first().cyclicDependencies.isEmpty()) {
+                val data = dataList.removeFirst()
+                dataMap.remove(data.connection)
+                data.connection.calculateState(updated)
+            } else {
+                updateCyclic(dataMap, dataList)
+                updated = mutableSetOf()
+            }
         }
     }
 
-    private fun updateCyclic(
-        numIncoming: MutableMap<Connection, Int>, updated: MutableSet<Gate>
-    ) {
-        TODO()
+    private fun updateCyclic(dataMap: MutableMap<Connection, ConnectionData>, dataList: MutableList<ConnectionData>) {
+        var lastDependency: ConnectionData? = null
+        for (data in dataList) {
+            data.cyclicDependencies.forEach {
+                if (dataMap[it]!!.finishedTime!! < (lastDependency?.finishedTime ?: Int.MAX_VALUE)) {
+                    lastDependency = dataMap[it]
+                }
+            }
+
+            data.connection.calculateState(mutableSetOf())
+
+            if (data == lastDependency) {
+                break
+            }
+        }
+
+        for (data in dataList) {
+            data.cyclicDependencies.forEach {
+                if (it.state == State.INVALID) {
+                    it.state = State.Z
+                }
+            }
+
+            data.connection.calculateState(mutableSetOf())
+
+            if (data == lastDependency) {
+                break
+            }
+        }
+
+        var stable = true
+        for (data in dataList) {
+            val old = data.connection.state
+            data.connection.calculateState(mutableSetOf())
+            if (data.connection.state != old) {
+                stable = false
+            }
+            if (data == lastDependency) {
+                break
+            }
+        }
+
+        if (!stable) {
+            for (data in dataList) {
+                data.connection.state = State.INVALID
+                if (data == lastDependency) {
+                    break
+                }
+            }
+        }
+        while (dataList.isNotEmpty()) {
+            val data = dataList.removeFirst()
+            dataMap.remove(data.connection)
+            if (data == lastDependency) {
+                break
+            }
+        }
     }
 
     private inner class Connection {
@@ -111,7 +153,7 @@ class CircuitImpl : Circuit {
         val connectedGateOutputs = mutableSetOf<Pair<Gate, Int>>()
         val connectedGateInputs = mutableSetOf<Pair<Gate, Int>>()
 
-        fun calculateState(updated: MutableSet<Gate>): Boolean {
+        fun calculateState(updated: MutableSet<Gate>) {
             connectedGateOutputs.forEach { (gate, _) ->
                 if (gate !in updated) {
                     gate.calculateOutputs()
@@ -119,7 +161,6 @@ class CircuitImpl : Circuit {
                 }
             }
 
-            val oldState = state
             state = State.Z
             for ((gate, index) in connectedGateOutputs) {
                 when (gate.outputStates[index]) {
@@ -142,7 +183,6 @@ class CircuitImpl : Circuit {
                     }
                 }
             }
-            return oldState != state
         }
 
         fun disconnectEverything() {

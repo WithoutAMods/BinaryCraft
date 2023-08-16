@@ -143,9 +143,19 @@ class CircuitTest {
         circuit.setGateOutput(repeaterId, 0, connection)
 
         assertEquals(State.LOW, circuit.getState(connection))
-        State.entries.forEach {
-            input.state = it
-            assertEquals(it, circuit.getState(connection))
-        }
+        input.state = State.Z
+        assertEquals(State.LOW, circuit.getState(connection))
+        input.state = State.HIGH
+        assertEquals(State.HIGH, circuit.getState(connection))
+        input.state = State.Z
+        assertEquals(State.HIGH, circuit.getState(connection))
+        input.state = State.INVALID
+        assertEquals(State.INVALID, circuit.getState(connection))
+        input.state = State.Z
+        assertEquals(State.Z, circuit.getState(connection))
+        input.state = State.INVALID
+        assertEquals(State.INVALID, circuit.getState(connection))
+        input.state = State.LOW
+        assertEquals(State.LOW, circuit.getState(connection))
     }
 }
