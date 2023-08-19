@@ -72,24 +72,34 @@ class CircuitImpl : Circuit {
     private fun update(gate: Gate) {
         val dataMap = analyzeGraph(gate)
         val dataList = dataMap.values.sortedByDescending { it.finishedTime!! }.toMutableList()
-        updateAcyclic(dataMap, dataList)
+        val needsUpdate = gate.outputs.mapNotNull { it }.toMutableSet()
+        updateAcyclic(dataMap, dataList, needsUpdate)
     }
 
-    private fun updateAcyclic(dataMap: MutableMap<Connection, ConnectionData>, dataList: MutableList<ConnectionData>) {
+    private fun updateAcyclic(
+        dataMap: MutableMap<Connection, ConnectionData>,
+        dataList: MutableList<ConnectionData>,
+        needsUpdate: MutableSet<Connection>
+    ) {
         var updated = mutableSetOf<Gate>()
         while (dataList.isNotEmpty()) {
             if (dataList.first().cyclicDependencies.isEmpty()) {
                 val data = dataList.removeFirst()
-                dataMap.remove(data.connection)
-                data.connection.calculateState(updated)
+                if (needsUpdate.contains(data.connection)) {
+                    data.connection.calculateState(updated, needsUpdate)
+                }
             } else {
-                updateCyclic(dataMap, dataList)
+                updateCyclic(dataMap, dataList, needsUpdate)
                 updated = mutableSetOf()
             }
         }
     }
 
-    private fun updateCyclic(dataMap: MutableMap<Connection, ConnectionData>, dataList: MutableList<ConnectionData>) {
+    private fun updateCyclic(
+        dataMap: MutableMap<Connection, ConnectionData>,
+        dataList: MutableList<ConnectionData>,
+        needsUpdate: MutableSet<Connection>
+    ) {
         var lastDependency: ConnectionData? = null
         for (data in dataList) {
             data.cyclicDependencies.forEach {
@@ -98,7 +108,7 @@ class CircuitImpl : Circuit {
                 }
             }
 
-            data.connection.calculateState(mutableSetOf())
+            data.connection.calculateState(mutableSetOf(), needsUpdate)
 
             if (data == lastDependency) {
                 break
@@ -112,7 +122,7 @@ class CircuitImpl : Circuit {
                 }
             }
 
-            data.connection.calculateState(mutableSetOf())
+            data.connection.calculateState(mutableSetOf(), needsUpdate)
 
             if (data == lastDependency) {
                 break
@@ -122,7 +132,7 @@ class CircuitImpl : Circuit {
         var stable = true
         for (data in dataList) {
             val old = data.connection.state
-            data.connection.calculateState(mutableSetOf())
+            data.connection.calculateState(mutableSetOf(), needsUpdate)
             if (data.connection.state != old) {
                 stable = false
             }
@@ -141,7 +151,6 @@ class CircuitImpl : Circuit {
         }
         while (dataList.isNotEmpty()) {
             val data = dataList.removeFirst()
-            dataMap.remove(data.connection)
             if (data == lastDependency) {
                 break
             }
@@ -153,7 +162,7 @@ class CircuitImpl : Circuit {
         val connectedGateOutputs = mutableSetOf<Pair<Gate, Int>>()
         val connectedGateInputs = mutableSetOf<Pair<Gate, Int>>()
 
-        fun calculateState(updated: MutableSet<Gate>) {
+        fun calculateState(updated: MutableSet<Gate>, needsUpdate: MutableSet<Connection>) {
             connectedGateOutputs.forEach { (gate, _) ->
                 if (gate !in updated) {
                     gate.calculateOutputs()
@@ -161,6 +170,7 @@ class CircuitImpl : Circuit {
                 }
             }
 
+            val oldState = state
             state = State.Z
             for ((gate, index) in connectedGateOutputs) {
                 when (gate.outputStates[index]) {
@@ -181,6 +191,11 @@ class CircuitImpl : Circuit {
                             break
                         }
                     }
+                }
+            }
+            if (state != oldState) {
+                forEachDependentConnection {
+                    needsUpdate.add(it)
                 }
             }
         }
