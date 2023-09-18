@@ -72,7 +72,7 @@ class CircuitImpl : Circuit {
     private fun update(gate: Gate) {
         val dataMap = analyzeGraph(gate)
         val dataList = dataMap.values.sortedByDescending { it.finishedTime!! }.toMutableList()
-        val needsUpdate = gate.outputs.mapNotNull { it }.toMutableSet()
+        val needsUpdate = gate.outputs.filterNotNull().toMutableSet()
         updateAcyclic(dataMap, dataList, needsUpdate)
     }
 
@@ -115,19 +115,19 @@ class CircuitImpl : Circuit {
             }
         }
 
-        for (data in dataList) {
-            data.cyclicDependencies.forEach {
-                if (it.state == State.INVALID) {
-                    it.state = State.Z
-                }
-            }
-
-            data.connection.calculateState(mutableSetOf(), needsUpdate)
-
-            if (data == lastDependency) {
-                break
-            }
-        }
+//        for (data in dataList) {
+//            data.cyclicDependencies.forEach {
+//                if (it.state == State.INVALID) {
+//                    it.state = State.Z
+//                }
+//            }
+//
+//            data.connection.calculateState(mutableSetOf(), needsUpdate)
+//
+//            if (data == lastDependency) {
+//                break
+//            }
+//        }
 
         var stable = true
         for (data in dataList) {
@@ -143,7 +143,7 @@ class CircuitImpl : Circuit {
 
         if (!stable) {
             for (data in dataList) {
-                data.connection.state = State.INVALID
+                data.connection.state = ConnectionState.INVALID
                 if (data == lastDependency) {
                     break
                 }
@@ -158,7 +158,7 @@ class CircuitImpl : Circuit {
     }
 
     private inner class Connection {
-        var state: State = State.Z
+        var state = ConnectionState.INVALID
         val connectedGateOutputs = mutableSetOf<Pair<Gate, Int>>()
         val connectedGateInputs = mutableSetOf<Pair<Gate, Int>>()
 
@@ -170,30 +170,11 @@ class CircuitImpl : Circuit {
                 }
             }
 
-            val oldState = state
-            state = State.Z
-            for ((gate, index) in connectedGateOutputs) {
-                when (gate.outputStates[index]) {
-                    State.Z -> {
-                        continue
-                    }
-
-                    State.INVALID -> {
-                        state = State.INVALID
-                        break
-                    }
-
-                    else -> {
-                        if (state == State.Z) {
-                            state = gate.outputStates[index]
-                        } else if (state != gate.outputStates[index]) {
-                            state = State.INVALID
-                            break
-                        }
-                    }
-                }
-            }
-            if (state != oldState) {
+            val newState = connectedGateOutputs.map { (gate, index) ->
+                gate.outputStates[index]
+            }.toConnectionState()
+            if (state != newState) {
+                state = newState
                 forEachDependentConnection {
                     needsUpdate.add(it)
                 }
@@ -223,7 +204,7 @@ class CircuitImpl : Circuit {
     ) {
         val inputs: MutableList<Connection?> = mutableListOf()
         val outputs: MutableList<Connection?> = mutableListOf()
-        lateinit var outputStates: List<State>
+        lateinit var outputStates: List<OutputState>
 
         init {
             while (inputs.size < gateBehavior.inputCount) {
@@ -236,7 +217,7 @@ class CircuitImpl : Circuit {
             calculateOutputs()
         }
 
-        private fun state(connection: Connection?) = (connection?.state ?: State.Z)
+        private fun state(connection: Connection?) = (connection?.state ?: ConnectionState.INVALID)
 
         fun setInput(index: Int, connection: Connection?) {
             val old = inputs[index]
