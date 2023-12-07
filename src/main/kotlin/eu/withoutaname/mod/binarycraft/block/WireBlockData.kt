@@ -10,11 +10,11 @@ import net.minecraftforge.common.util.INBTSerializable
 class WireBlockData : INBTSerializable<CompoundTag> {
     var level = 1
         private set
-    val levelData = Array(4) { LevelData() }
     var wireAbove = false
         private set
     var neighbourHeights = IntArray(4)
         private set
+    val levelData = Array(4) { LevelData() }
 
     fun addLevel() {
         if (level == 4) throw IllegalStateException("Cannot add more than 4 levels")
@@ -37,6 +37,8 @@ class WireBlockData : INBTSerializable<CompoundTag> {
     override fun serializeNBT(): CompoundTag {
         val tag = CompoundTag()
         tag.putInt("level", level)
+        tag.putBoolean("wireAbove", wireAbove)
+        tag.putIntArray("neighbourHeights", neighbourHeights)
         val levelDataTag = ListTag()
         for (level in levelData) {
             levelDataTag.add(level.serializeNBT())
@@ -47,6 +49,18 @@ class WireBlockData : INBTSerializable<CompoundTag> {
 
     override fun deserializeNBT(nbt: CompoundTag) {
         level = nbt.getInt("level").coerceAtLeast(1).coerceAtMost(4)
+        wireAbove = nbt.getBoolean("wireAbove")
+        val neighbourHeightsNew = nbt.getIntArray("neighbourHeights")
+        if (neighbourHeightsNew.size == 4) {
+            neighbourHeights = neighbourHeightsNew
+        } else {
+            for (i in 0 until minOf(neighbourHeightsNew.size, 4)) {
+                neighbourHeights[i] = neighbourHeightsNew[i]
+            }
+            for (i in neighbourHeightsNew.size until 4) {
+                neighbourHeights[i] = 0
+            }
+        }
         val levelDataTag = nbt.getList("levelData", 10)
         for (i in 0 until minOf(levelDataTag.size, levelData.size)) {
             levelData[i].deserializeNBT(levelDataTag.getCompound(i))

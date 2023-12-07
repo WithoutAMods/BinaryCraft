@@ -17,7 +17,15 @@ import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.block.state.BlockState
 import net.minecraftforge.client.model.IDynamicBakedModel
 import net.minecraftforge.client.model.data.ModelData
+import kotlin.math.max
+import kotlin.math.min
 
+
+private fun yOffset(level: Int) = level * 4 / 16.0
+private const val cableThickness = .5 / 16.0
+private const val cableSpacing = .25 / 16.0
+private const val cableStart = .5 - (cableThickness * 16 + cableSpacing * 15) / 2
+private fun cableOffset(i: Int) = cableStart + (cableThickness + cableSpacing) * i
 
 class WireBakedModel(private val overrides: ItemOverrides) : IDynamicBakedModel {
     companion object {
@@ -45,134 +53,176 @@ class WireBakedModel(private val overrides: ItemOverrides) : IDynamicBakedModel 
     }
 
     private fun BakedModelHelper.addWireQuads(level: Int, data: WireBlockData.LevelData) {
-        val offsetY = level * 4 / 16.0
-        val cableThickness = .5 / 16.0
-
         if (data.isSimple) {
-            val start = .5 - cableThickness / 2
-            for (rot in 0..3) {
-                val direction = Direction.from2DDataValue(rot)
-                if (data.hasConnection(direction, ConnectionType.Simple)) {
-                    addCube(v(start, offsetY, start), v(start + cableThickness, offsetY + cableThickness, 1.0), rot)
-                }
-            }
+            addSimpleWireQuads(data, level)
         } else {
-            val cableSpacing = .25 / 16.0
-            val cableStart = .5 - (cableThickness * 16 + cableSpacing + 15) / 2
-            fun cableOffset(i: Int) = cableStart + (cableThickness + cableSpacing) * i
+            addComplexWireQuads(data, level)
+        }
+    }
 
-            val north = data.sideData[Direction.NORTH.get2DDataValue()]
-            val south = data.sideData[Direction.SOUTH.get2DDataValue()]
-            val east = data.sideData[Direction.EAST.get2DDataValue()]
-            val west = data.sideData[Direction.WEST.get2DDataValue()]
-            val northAndSouth = north and south
-            val northOrSouth = north or south
-            val eastAndWest = east and west
-            val eastOrWest = east or west
-            val northOrSouthAndEastOrWest = northOrSouth and eastOrWest
-
-            var lastNorth = -1
-            var firstSouth = 16
-            val northAndAny = north and (south or eastOrWest)
-            for (i in 15 downTo 0) {
-                if (northAndAny and (1 shl i) == 1) {
-                    lastNorth = i
-                    break
-                }
-            }
-            val southAndAny = south and (north or eastOrWest)
-            for (i in 0..15) {
-                if (southAndAny and (1 shl i) == 1) {
-                    firstSouth = i
-                    break
-                }
-            }
-
-            for (i in 0..15) {
-                color(DyeColor.byId(i))
-                val offset = cableOffset(i)
-                val mask = 1 shl i
-                if (northAndSouth and mask == 1) {
-                    addCube(v(offset, offsetY, .0), v(offset + cableThickness, offsetY + cableThickness, 1.0))
-                } else {
-                    if (northOrSouthAndEastOrWest and mask == 1) {
-                        if (north and mask == 1) {
-                            addCube(
-                                v(offset, offsetY, .0),
-                                v(offset + cableThickness, offsetY + cableThickness, offset + cableThickness)
-                            )
-                        } else {
-                            addCube(
-                                v(offset, offsetY, offset),
-                                v(offset + cableThickness, offsetY + cableThickness, 1.0)
-                            )
-                        }
-                    } else {
-                        if (north and mask == 1) {
-                            addCube(
-                                v(offset, offsetY, .0),
-                                v(offset + cableThickness, offsetY + cableThickness, cableStart)
-                            )
-                        } else if (south and mask == 1) {
-                            addCube(
-                                v(offset, offsetY, 1 - cableStart),
-                                v(offset + cableThickness, offsetY + cableThickness, 1.0)
-                            )
-                        }
-                    }
-                }
-                val isWest = west and mask == 1
-                val isEast = east and mask == 1
-                if (isWest) {
-                    addCube(
-                        v(.0, offsetY, offset),
-                        v(
-                            if (firstSouth < i) cableOffset(firstSouth) else offset,
-                            offsetY + cableThickness,
-                            offset + cableThickness
-                        )
-                    )
-                }
-                if (isEast) {
-                    addCube(
-                        v(
-                            (if (lastNorth > i) cableOffset(lastNorth) else offset) + cableThickness,
-                            offsetY,
-                            offset
-                        ),
-                        v(1.0, offsetY + cableThickness, offset + cableThickness)
-                    )
-                }
-                if (isWest && firstSouth < i || isEast && lastNorth > i) {
-                    addCube(
-                        v(
-                            if (isWest && firstSouth < i) cableOffset(firstSouth) - cableThickness else offset,
-                            offsetY,
-                            offset
-                        ),
-                        v(
-                            (if (isEast && lastNorth > i) cableOffset(lastNorth) + cableThickness else offset) + cableThickness,
-                            offsetY + cableThickness,
-                            offset + cableThickness
-                        )
-                    )
-                }
+    private fun BakedModelHelper.addSimpleWireQuads(
+        data: WireBlockData.LevelData, level: Int
+    ) {
+        val start = .5 - cableThickness / 2
+        for (rot in 0..3) {
+            val direction = Direction.from2DDataValue(rot)
+            if (data.hasConnection(direction, ConnectionType.Simple)) {
+                addCube(
+                    v(start, yOffset(level), start),
+                    v(start + cableThickness, yOffset(level) + cableThickness, 1.0),
+                    rot
+                )
             }
         }
     }
 
+    private fun BakedModelHelper.addComplexWireQuads(
+        data: WireBlockData.LevelData, level: Int
+    ) {
+        val north = data.sideData[Direction.NORTH.get2DDataValue()]
+        val south = data.sideData[Direction.SOUTH.get2DDataValue()]
+        val east = data.sideData[Direction.EAST.get2DDataValue()]
+        val west = data.sideData[Direction.WEST.get2DDataValue()]
+
+        for (i in 0..15) {
+            color(DyeColor.byId(i))
+            val offset = cableOffset(i)
+            addNorthSouthWireQuads(
+                offset,
+                level,
+                north hasBit i,
+                south hasBit i,
+                east hasBit i,
+                west hasBit i
+            )
+            addEastWestWireQuads(i, offset, level, north, south, east, west)
+        }
+    }
+
+    private fun BakedModelHelper.addNorthSouthWireQuads(
+        offset: Double, level: Int, north: Boolean, south: Boolean, east: Boolean, west: Boolean
+    ) {
+        if (!north && !south) return
+
+        val start = when {
+            north -> .0
+            east || west -> offset
+            else -> 1 - cableStart
+        }
+        val end = when {
+            south -> 1.0
+            east || west -> offset + cableThickness
+            else -> cableStart
+        }
+        addCube(
+            v(offset, yOffset(level), start),
+            v(offset + cableThickness, yOffset(level) + cableThickness, end)
+        )
+    }
+
+    private fun BakedModelHelper.addEastWestWireQuads(
+        i: Int, offset: Double, level: Int, north: Int, south: Int, east: Int, west: Int
+    ) {
+        if (!(east or west hasBit i)) return
+
+        val firstIndex = when {
+            west hasBit i -> -1
+            north or south hasBit i -> i
+            else -> 16
+        }
+        val lastIndex = when {
+            east hasBit i -> 16
+            north or south hasBit i -> i
+            else -> -1
+        }
+        val fistObstruction = getFirstObstruction(north, south, east, west, firstIndex, lastIndex, i)
+        val lastObstruction = getLastObstruction(north, south, east, west, firstIndex, lastIndex, i)
+
+        val start = when (firstIndex) {
+            -1 -> .0
+            16 -> 1 - cableStart
+            else -> cableOffset(firstIndex)
+        }
+        val end = when (lastIndex) {
+            -1 -> cableStart
+            16 -> 1.0
+            else -> cableOffset(lastIndex) + cableThickness
+        }
+
+        if (fistObstruction == null || lastObstruction == null) {
+            addCube(
+                v(start, yOffset(level), offset),
+                v(end, yOffset(level) + cableThickness, offset + cableThickness)
+            )
+            return
+        }
+
+        addCube(
+            v(start, yOffset(level), offset),
+            v(cableOffset(fistObstruction), yOffset(level) + cableThickness, offset + cableThickness)
+        )
+        addCube(
+            v(cableOffset(fistObstruction) - cableThickness, yOffset(level) + cableThickness, offset),
+            v(
+                cableOffset(lastObstruction) + 2 * cableThickness,
+                yOffset(level) + 2 * cableThickness,
+                offset + cableThickness
+            )
+        )
+        addCube(
+            v(cableOffset(lastObstruction) + cableThickness, yOffset(level), offset),
+            v(end, yOffset(level) + cableThickness, offset + cableThickness)
+        )
+    }
+
+    private fun getFirstObstruction(
+        north: Int,
+        south: Int,
+        east: Int,
+        west: Int,
+        firstIndex: Int,
+        lastIndex: Int,
+        i: Int
+    ): Int? {
+        val southAndAny = south and (north or east or west)
+        for (j in firstIndex + 1..<min(i, lastIndex))
+            if (southAndAny hasBit j) return j
+        val northAndAny = north and (south or east or west)
+        for (j in max(firstIndex, i) + 1..<lastIndex)
+            if (northAndAny hasBit j) return j
+        return null
+    }
+
+    private fun getLastObstruction(
+        north: Int,
+        south: Int,
+        east: Int,
+        west: Int,
+        firstIndex: Int,
+        lastIndex: Int,
+        i: Int
+    ): Int? {
+        val northAndAny = north and (south or east or west)
+        for (j in lastIndex - 1 downTo i + 1)
+            if (northAndAny hasBit j) return j
+        val southAndAny = south and (north or east or west)
+        for (j in i - 1 downTo firstIndex + 1)
+            if (southAndAny hasBit j) return j
+        return null
+    }
+
+    private infix fun Int.hasBit(i: Int): Boolean {
+        return this and (1 shl i) != 0
+    }
+
     override fun getQuads(
-        state: BlockState?,
-        side: Direction?,
-        rand: RandomSource,
-        extraData: ModelData,
-        renderType: RenderType?
+        state: BlockState?, side: Direction?, rand: RandomSource, extraData: ModelData, renderType: RenderType?
     ) = BakedModelHelper.buildQuads(blank) {
         if (side != null || renderType != RenderType.solid()) return@buildQuads
 
         val data = extraData[WireBlock.DATA] ?: WireBlockData()
 
-        for (i in 0 until data.level - 1) {
+        for (i in 0 until if (data.wireAbove) 4 else data.level - 1) {
             addAll(gridQuadsCache[i])
         }
         for (i in 0 until data.level) {
