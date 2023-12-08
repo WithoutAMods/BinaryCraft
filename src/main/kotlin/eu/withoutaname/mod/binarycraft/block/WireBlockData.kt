@@ -12,7 +12,7 @@ class WireBlockData : INBTSerializable<CompoundTag> {
         private set
     var wireAbove = false
         private set
-    var neighbourHeights = IntArray(4)
+    var neighbourLevels = IntArray(4)
         private set
     val levelData = Array(4) { LevelData() }
 
@@ -38,7 +38,7 @@ class WireBlockData : INBTSerializable<CompoundTag> {
         val tag = CompoundTag()
         tag.putInt("level", level)
         tag.putBoolean("wireAbove", wireAbove)
-        tag.putIntArray("neighbourHeights", neighbourHeights)
+        tag.putIntArray("neighbourLevels", neighbourLevels)
         val levelDataTag = ListTag()
         for (level in levelData) {
             levelDataTag.add(level.serializeNBT())
@@ -50,15 +50,15 @@ class WireBlockData : INBTSerializable<CompoundTag> {
     override fun deserializeNBT(nbt: CompoundTag) {
         level = nbt.getInt("level").coerceAtLeast(1).coerceAtMost(4)
         wireAbove = nbt.getBoolean("wireAbove")
-        val neighbourHeightsNew = nbt.getIntArray("neighbourHeights")
+        val neighbourHeightsNew = nbt.getIntArray("neighbourLevels")
         if (neighbourHeightsNew.size == 4) {
-            neighbourHeights = neighbourHeightsNew
+            neighbourLevels = neighbourHeightsNew
         } else {
             for (i in 0 until minOf(neighbourHeightsNew.size, 4)) {
-                neighbourHeights[i] = neighbourHeightsNew[i]
+                neighbourLevels[i] = neighbourHeightsNew[i]
             }
             for (i in neighbourHeightsNew.size until 4) {
-                neighbourHeights[i] = 0
+                neighbourLevels[i] = 0
             }
         }
         val levelDataTag = nbt.getList("levelData", 10)

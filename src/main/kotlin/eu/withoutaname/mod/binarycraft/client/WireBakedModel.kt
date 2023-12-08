@@ -52,17 +52,33 @@ class WireBakedModel(private val overrides: ItemOverrides) : IDynamicBakedModel 
         addCube(v(.0, offset + pillarHeight, .0), v(1.0, offset + platformHeight, 1.0))
     }
 
-    private fun BakedModelHelper.addWireQuads(level: Int, data: WireBlockData.LevelData) {
+    override fun getQuads(
+        state: BlockState?, side: Direction?, rand: RandomSource, extraData: ModelData, renderType: RenderType?
+    ) = BakedModelHelper.buildQuads(blank) {
+        if (side != null || renderType != RenderType.solid()) return@buildQuads
+
+        val data = extraData[WireBlock.DATA] ?: WireBlockData()
+
+        for (i in 0 until if (data.wireAbove) 4 else data.level - 1) {
+            addAll(gridQuadsCache[i])
+        }
+        for (i in 0 until data.level) {
+            addWireQuads(i, data.levelData[i], data.neighbourLevels)
+        }
+    }
+
+    private fun BakedModelHelper.addWireQuads(level: Int, data: WireBlockData.LevelData, neighbourLevels: IntArray) {
         if (data.isSimple) {
-            addSimpleWireQuads(data, level)
+            addSimpleWireQuads(data, level, neighbourLevels)
         } else {
-            addComplexWireQuads(data, level)
+            addComplexWireQuads(data, level, neighbourLevels)
         }
     }
 
     private fun BakedModelHelper.addSimpleWireQuads(
-        data: WireBlockData.LevelData, level: Int
+        data: WireBlockData.LevelData, level: Int, neighbourLevels: IntArray
     ) {
+        color(DyeColor.RED)
         val start = .5 - cableThickness / 2
         for (rot in 0..3) {
             val direction = Direction.from2DDataValue(rot)
@@ -72,12 +88,20 @@ class WireBakedModel(private val overrides: ItemOverrides) : IDynamicBakedModel 
                     v(start + cableThickness, yOffset(level) + cableThickness, 1.0),
                     rot
                 )
+                val neighbourLevel = neighbourLevels[rot]
+                if (neighbourLevel < level) {
+                    addCube(
+                        v(start, yOffset(neighbourLevel), 1.0),
+                        v(start + cableThickness, yOffset(level) + cableThickness, 1 + cableThickness),
+                        rot
+                    )
+                }
             }
         }
     }
 
     private fun BakedModelHelper.addComplexWireQuads(
-        data: WireBlockData.LevelData, level: Int
+        data: WireBlockData.LevelData, level: Int, neighbourLevels: IntArray
     ) {
         val north = data.sideData[Direction.NORTH.get2DDataValue()]
         val south = data.sideData[Direction.SOUTH.get2DDataValue()]
@@ -97,6 +121,10 @@ class WireBakedModel(private val overrides: ItemOverrides) : IDynamicBakedModel 
             )
             addEastWestWireQuads(i, offset, level, north, south, east, west)
         }
+        addVerticalWireQuads(level, south, neighbourLevels[0], 0)
+        addVerticalWireQuads(level, west, neighbourLevels[1], 1)
+        addVerticalWireQuads(level, north, neighbourLevels[2], 2)
+        addVerticalWireQuads(level, east, neighbourLevels[3], 3)
     }
 
     private fun BakedModelHelper.addNorthSouthWireQuads(
@@ -211,23 +239,24 @@ class WireBakedModel(private val overrides: ItemOverrides) : IDynamicBakedModel 
         return null
     }
 
-    private infix fun Int.hasBit(i: Int): Boolean {
-        return this and (1 shl i) != 0
+    private fun BakedModelHelper.addVerticalWireQuads(level: Int, data: Int, neighbourLevel: Int, rotation: Int) {
+        if (neighbourLevel >= level) return
+
+        for (i in 0..15) {
+            if (!(data hasBit i)) continue
+
+            color(DyeColor.byId(i))
+            val offset = cableOffset(if (rotation < 2) i else 15 - i)
+            addCube(
+                v(offset, yOffset(neighbourLevel), 1.0),
+                v(offset + cableThickness, yOffset(level) + cableThickness, 1 + cableThickness),
+                rotation
+            )
+        }
     }
 
-    override fun getQuads(
-        state: BlockState?, side: Direction?, rand: RandomSource, extraData: ModelData, renderType: RenderType?
-    ) = BakedModelHelper.buildQuads(blank) {
-        if (side != null || renderType != RenderType.solid()) return@buildQuads
-
-        val data = extraData[WireBlock.DATA] ?: WireBlockData()
-
-        for (i in 0 until if (data.wireAbove) 4 else data.level - 1) {
-            addAll(gridQuadsCache[i])
-        }
-        for (i in 0 until data.level) {
-            addWireQuads(i, data.levelData[i])
-        }
+    private infix fun Int.hasBit(i: Int): Boolean {
+        return this and (1 shl i) != 0
     }
 
     override fun getRenderTypes(itemStack: ItemStack, fabulous: Boolean) =
