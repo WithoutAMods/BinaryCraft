@@ -1,8 +1,8 @@
 package eu.withoutaname.mod.binarycraft.logic
 
 class IdList<T : Any> {
-    val list = mutableListOf<T?>()
-    var nextId = 0
+    private val list = mutableListOf<T?>()
+    private var nextId = 0
 
     fun add(element: T): Int {
         val id = nextId

@@ -9,7 +9,7 @@ import net.minecraft.world.phys.Vec3
 import net.minecraftforge.client.model.pipeline.QuadBakingVertexConsumer
 
 
-class BakedModelHelper(var sprite: TextureAtlasSprite) {
+class BakedModelHelper(private var sprite: TextureAtlasSprite) {
 
     private val quads = mutableListOf<BakedQuad>()
     private val builder = QuadBakingVertexConsumer { quads.add(it) }
