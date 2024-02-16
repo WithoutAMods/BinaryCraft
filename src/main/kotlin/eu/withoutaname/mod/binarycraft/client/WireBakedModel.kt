@@ -6,15 +6,18 @@ import eu.withoutaname.mod.binarycraft.block.WireBlockData
 import eu.withoutaname.mod.binarycraft.logic.ConnectionType
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.RenderType
+import net.minecraft.client.renderer.block.model.BakedQuad
 import net.minecraft.client.renderer.block.model.ItemOverrides
 import net.minecraft.client.renderer.texture.TextureAtlasSprite
 import net.minecraft.core.Direction
+import net.minecraft.core.Direction.*
 import net.minecraft.resources.ResourceLocation
 import net.minecraft.util.RandomSource
 import net.minecraft.world.inventory.InventoryMenu
 import net.minecraft.world.item.DyeColor
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.block.state.BlockState
+import net.minecraftforge.client.ChunkRenderTypeSet
 import net.minecraftforge.client.model.IDynamicBakedModel
 import net.minecraftforge.client.model.data.ModelData
 import kotlin.math.max
@@ -29,41 +32,255 @@ private fun cableOffset(i: Int) = cableStart + (cableThickness + cableSpacing) *
 
 class WireBakedModel(private val overrides: ItemOverrides) : IDynamicBakedModel {
     companion object {
-        val blankTexture: ResourceLocation = ResourceLocation(BinaryCraft.ID, "block/blank")
+        private val blankTexture = ResourceLocation(BinaryCraft.ID, "block/blank")
+        private val gridTexture = ResourceLocation(BinaryCraft.ID, "block/grid")
         val blank: TextureAtlasSprite by lazy {
             Minecraft.getInstance().getTextureAtlas(InventoryMenu.BLOCK_ATLAS).apply(blankTexture)
+        }
+        val grid: TextureAtlasSprite by lazy {
+            Minecraft.getInstance().getTextureAtlas(InventoryMenu.BLOCK_ATLAS).apply(gridTexture)
         }
     }
 
     private val gridQuadsCache by lazy { Array(4) { getGridQuads(it) } }
+    private val gridQuadsSideCache by lazy { Array(4) { getGridQuadsSides(it) } }
 
-    private fun getGridQuads(level: Int) = BakedModelHelper.buildQuads(blank) {
+    private fun getGridQuads(level: Int) = BakedModelHelper.buildQuads(grid) {
         val pillarWidth = 1 / 16.0
         val platformHeight = 4 / 16.0
         val platformThickness = .5 / 16.0
         val pillarHeight = platformHeight - platformThickness
         val offset = level * platformHeight
 
-        addCube(v(.0, offset, .0), v(pillarWidth, offset + pillarHeight, pillarWidth))
-        addCube(v(1 - pillarWidth, offset, .0), v(1.0, offset + pillarHeight, pillarWidth))
-        addCube(v(.0, offset, 1 - pillarWidth), v(pillarWidth, offset + pillarHeight, 1.0))
-        addCube(v(1 - pillarWidth, offset, 1 - pillarWidth), v(1.0, offset + pillarHeight, 1.0))
+        gridColor()
 
-        addCube(v(.0, offset + pillarHeight, .0), v(1.0, offset + platformHeight, 1.0))
+        // top
+        addQuad(
+            v(.0, offset + platformHeight, .0),
+            v(.0, offset + platformHeight, 1.0),
+            v(1.0, offset + platformHeight, 1.0),
+            v(1.0, offset + platformHeight, .0)
+        )
+        // bottom
+        addQuad(
+            v(.0, offset + pillarHeight, 1.0),
+            v(.0, offset + pillarHeight, .0),
+            v(1.0, offset + pillarHeight, .0),
+            v(1.0, offset + pillarHeight, 1.0)
+        )
+
+        sprite = blank
+        // pillar nw face s
+        addQuad(
+            v(.0, offset + pillarHeight, pillarWidth),
+            v(.0, offset, pillarWidth),
+            v(pillarWidth, offset, pillarWidth),
+            v(pillarWidth, offset + pillarHeight, pillarWidth)
+        )
+        // pillar nw face e
+        addQuad(
+            v(pillarWidth, offset + pillarHeight, pillarWidth),
+            v(pillarWidth, offset, pillarWidth),
+            v(pillarWidth, offset, .0),
+            v(pillarWidth, offset + pillarHeight, .0)
+        )
+        // pillar sw face n
+        addQuad(
+            v(pillarWidth, offset + pillarHeight, 1 - pillarWidth),
+            v(pillarWidth, offset, 1 - pillarWidth),
+            v(.0, offset, 1 - pillarWidth),
+            v(.0, offset + pillarHeight, 1 - pillarWidth)
+        )
+        // pillar sw face e
+        addQuad(
+            v(pillarWidth, offset + pillarHeight, 1.0),
+            v(pillarWidth, offset, 1.0),
+            v(pillarWidth, offset, 1 - pillarWidth),
+            v(pillarWidth, offset + pillarHeight, 1 - pillarWidth)
+        )
+        // pillar se face n
+        addQuad(
+            v(1.0, offset + pillarHeight, 1 - pillarWidth),
+            v(1.0, offset, 1 - pillarWidth),
+            v(1 - pillarWidth, offset, 1 - pillarWidth),
+            v(1 - pillarWidth, offset + pillarHeight, 1 - pillarWidth)
+        )
+        // pillar se face w
+        addQuad(
+            v(1 - pillarWidth, offset + pillarHeight, 1 - pillarWidth),
+            v(1 - pillarWidth, offset, 1 - pillarWidth),
+            v(1 - pillarWidth, offset, 1.0),
+            v(1 - pillarWidth, offset + pillarHeight, 1.0)
+        )
+        // pillar ne face s
+        addQuad(
+            v(1 - pillarWidth, offset + pillarHeight, pillarWidth),
+            v(1 - pillarWidth, offset, pillarWidth),
+            v(1.0, offset, pillarWidth),
+            v(1.0, offset + pillarHeight, pillarWidth)
+        )
+        // pillar ne face w
+        addQuad(
+            v(1 - pillarWidth, offset + pillarHeight, .0),
+            v(1 - pillarWidth, offset, .0),
+            v(1 - pillarWidth, offset, pillarWidth),
+            v(1 - pillarWidth, offset + pillarHeight, pillarWidth)
+        )
+    }
+
+    private fun getGridQuadsSides(level: Int): Array<MutableList<BakedQuad>> {
+        val pillarWidth = 1 / 16.0
+        val platformHeight = 4 / 16.0
+        val platformThickness = .5 / 16.0
+        val pillarHeight = platformHeight - platformThickness
+        val offset = level * platformHeight
+
+        return arrayOf(
+            BakedModelHelper.buildQuads(blank) {
+                // south
+                gridColor()
+
+                // left
+                addQuad(
+                    v(.0, offset + pillarHeight, 1.0),
+                    v(.0, offset, 1.0),
+                    v(pillarWidth, offset, 1.0),
+                    v(pillarWidth, offset + pillarHeight, 1.0)
+                )
+
+                // top
+                addQuad(
+                    v(.0, offset + platformHeight, 1.0),
+                    v(.0, offset + pillarHeight, 1.0),
+                    v(1.0, offset + pillarHeight, 1.0),
+                    v(1.0, offset + platformHeight, 1.0),
+                )
+
+                // right
+                addQuad(
+                    v(1 - pillarWidth, offset + pillarHeight, 1.0),
+                    v(1 - pillarWidth, offset, 1.0),
+                    v(1.0, offset, 1.0),
+                    v(1.0, offset + pillarHeight, 1.0)
+                )
+            },
+            BakedModelHelper.buildQuads(blank) {
+                // west
+                gridColor()
+
+                // left
+                addQuad(
+                    v(.0, offset + pillarHeight, .0),
+                    v(.0, offset, .0),
+                    v(.0, offset, pillarWidth),
+                    v(.0, offset + pillarHeight, pillarWidth)
+                )
+
+                // top
+                addQuad(
+                    v(.0, offset + platformHeight, .0),
+                    v(.0, offset + pillarHeight, .0),
+                    v(.0, offset + pillarHeight, 1.0),
+                    v(.0, offset + platformHeight, 1.0),
+                )
+
+                // right
+                addQuad(
+                    v(.0, offset + pillarHeight, 1 - pillarWidth),
+                    v(.0, offset, 1 - pillarWidth),
+                    v(.0, offset, 1.0),
+                    v(.0, offset + pillarHeight, 1.0)
+                )
+            },
+            BakedModelHelper.buildQuads(blank) {
+                // north
+                gridColor()
+
+                // left
+                addQuad(
+                    v(1.0, offset + pillarHeight, .0),
+                    v(1.0, offset, .0),
+                    v(1 - pillarWidth, offset, .0),
+                    v(1 - pillarWidth, offset + pillarHeight, .0)
+                )
+
+                // top
+                addQuad(
+                    v(1.0, offset + platformHeight, .0),
+                    v(1.0, offset + pillarHeight, .0),
+                    v(.0, offset + pillarHeight, .0),
+                    v(.0, offset + platformHeight, .0),
+                )
+
+                // right
+                addQuad(
+                    v(pillarWidth, offset + pillarHeight, .0),
+                    v(pillarWidth, offset, .0),
+                    v(.0, offset, .0),
+                    v(.0, offset + pillarHeight, .0)
+                )
+            },
+            BakedModelHelper.buildQuads(blank) {
+                // east
+                gridColor()
+
+                // left
+                addQuad(
+                    v(1.0, offset + pillarHeight, 1.0),
+                    v(1.0, offset, 1.0),
+                    v(1.0, offset, 1 - pillarWidth),
+                    v(1.0, offset + pillarHeight, 1 - pillarWidth)
+                )
+
+                // top
+                addQuad(
+                    v(1.0, offset + platformHeight, 1.0),
+                    v(1.0, offset + pillarHeight, 1.0),
+                    v(1.0, offset + pillarHeight, .0),
+                    v(1.0, offset + platformHeight, .0),
+                )
+
+                // right
+                addQuad(
+                    v(1.0, offset + pillarHeight, pillarWidth),
+                    v(1.0, offset, pillarWidth),
+                    v(1.0, offset, .0),
+                    v(1.0, offset + pillarHeight, .0)
+                )
+            }
+        )
+    }
+
+    private fun BakedModelHelper.gridColor() {
+        color(160, 160, 160)
     }
 
     override fun getQuads(
         state: BlockState?, side: Direction?, rand: RandomSource, extraData: ModelData, renderType: RenderType?
     ) = BakedModelHelper.buildQuads(blank) {
-        if (side != null || renderType != RenderType.solid()) return@buildQuads
+        if (side != null && renderType == RenderType.cutout()) return@buildQuads
 
         val data = extraData[WireBlock.DATA] ?: WireBlockData()
 
-        for (i in 0 until if (data.wireAbove) 4 else data.level - 1) {
-            addAll(gridQuadsCache[i])
+        if (renderType == RenderType.cutout()) {
+            for (i in 0 until if (data.wireAbove) 4 else data.level - 1) {
+                addAll(gridQuadsCache[i])
+            }
+            return@buildQuads
         }
-        for (i in 0 until data.level) {
-            addWireQuads(i, data.levelData[i], data.neighbourLevels)
+
+        when (side) {
+            DOWN -> {}
+            UP -> {}
+            null -> for (i in 0 until data.level) addWireQuads(i, data.levelData[i], data.neighbourLevels)
+            else -> {
+                for (i in 0 until if (data.wireAbove) 4 else data.level - 1) {
+                    val rotation = side.get2DDataValue()
+                    if (data.neighbourLevels[rotation] <= i) {
+                        addAll(gridQuadsSideCache[i][rotation])
+                    }
+                }
+            }
         }
     }
 
@@ -81,7 +298,7 @@ class WireBakedModel(private val overrides: ItemOverrides) : IDynamicBakedModel 
         color(DyeColor.RED)
         val start = .5 - cableThickness / 2
         for (rot in 0..3) {
-            val direction = Direction.from2DDataValue(rot)
+            val direction = from2DDataValue(rot)
             if (data.hasConnection(direction, ConnectionType.Simple)) {
                 addCube(
                     v(start, yOffset(level), start),
@@ -103,10 +320,10 @@ class WireBakedModel(private val overrides: ItemOverrides) : IDynamicBakedModel 
     private fun BakedModelHelper.addComplexWireQuads(
         data: WireBlockData.LevelData, level: Int, neighbourLevels: IntArray
     ) {
-        val north = data.sideData[Direction.NORTH.get2DDataValue()]
-        val south = data.sideData[Direction.SOUTH.get2DDataValue()]
-        val east = data.sideData[Direction.EAST.get2DDataValue()]
-        val west = data.sideData[Direction.WEST.get2DDataValue()]
+        val north = data.sideData[NORTH.get2DDataValue()]
+        val south = data.sideData[SOUTH.get2DDataValue()]
+        val east = data.sideData[EAST.get2DDataValue()]
+        val west = data.sideData[WEST.get2DDataValue()]
 
         for (i in 0..15) {
             color(DyeColor.byId(i))
@@ -255,12 +472,13 @@ class WireBakedModel(private val overrides: ItemOverrides) : IDynamicBakedModel 
         }
     }
 
-    private infix fun Int.hasBit(i: Int): Boolean {
-        return this and (1 shl i) != 0
-    }
+    private infix fun Int.hasBit(i: Int) = this and (1 shl i) != 0
 
     override fun getRenderTypes(itemStack: ItemStack, fabulous: Boolean) =
         mutableListOf(RenderType.solid(), RenderType.cutout())
+
+    override fun getRenderTypes(state: BlockState, rand: RandomSource, data: ModelData): ChunkRenderTypeSet =
+        ChunkRenderTypeSet.of(RenderType.solid(), RenderType.cutout())
 
     override fun useAmbientOcclusion() = true
 

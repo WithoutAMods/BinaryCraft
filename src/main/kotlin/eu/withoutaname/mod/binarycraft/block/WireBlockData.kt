@@ -58,7 +58,7 @@ class WireBlockData : INBTSerializable<CompoundTag> {
                 neighbourLevels[i] = neighbourHeightsNew[i]
             }
             for (i in neighbourHeightsNew.size until 4) {
-                neighbourLevels[i] = 0
+                neighbourLevels[i] = 1
             }
         }
         val levelDataTag = nbt.getList("levelData", 10)
