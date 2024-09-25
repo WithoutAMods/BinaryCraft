@@ -4,15 +4,16 @@ import com.mojang.blaze3d.vertex.VertexConsumer
 import net.minecraft.client.renderer.block.model.BakedQuad
 import net.minecraft.client.renderer.texture.TextureAtlasSprite
 import net.minecraft.core.Direction
+import net.minecraft.util.FastColor.ARGB32
 import net.minecraft.world.item.DyeColor
 import net.minecraft.world.phys.Vec3
-import net.minecraftforge.client.model.pipeline.QuadBakingVertexConsumer
+import net.neoforged.neoforge.client.model.pipeline.QuadBakingVertexConsumer
 
 
 class BakedModelHelper(var sprite: TextureAtlasSprite) {
 
     private val quads = mutableListOf<BakedQuad>()
-    private val builder = QuadBakingVertexConsumer { quads.add(it) }
+    private val builder = QuadBakingVertexConsumer()
     private var colorR = 255
     private var colorG = 255
     private var colorB = 255
@@ -23,8 +24,11 @@ class BakedModelHelper(var sprite: TextureAtlasSprite) {
     }
 
     fun color(color: DyeColor) {
-        val rgb = color.textureDiffuseColors.map { (it * 255).toInt() }
-        color(rgb[0], rgb[1], rgb[2])
+        color(color.textureDiffuseColor)
+    }
+
+    private fun color(argb32: Int) {
+        color(ARGB32.red(argb32), ARGB32.green(argb32), ARGB32.blue(argb32), ARGB32.alpha(argb32))
     }
 
     fun color(r: Int, g: Int, b: Int, a: Int = 255) {
@@ -79,18 +83,23 @@ class BakedModelHelper(var sprite: TextureAtlasSprite) {
         builder.setSprite(sprite)
         builder.setDirection(Direction.getNearest(normal.x, normal.y, normal.z))
         putVertex(builder, normal, v1.x, v1.y, v1.z, 0f, 0f)
-        putVertex(builder, normal, v2.x, v2.y, v2.z, 0f, 16f)
-        putVertex(builder, normal, v3.x, v3.y, v3.z, 16f, 16f)
-        putVertex(builder, normal, v4.x, v4.y, v4.z, 16f, 0f)
+        putVertex(builder, normal, v2.x, v2.y, v2.z, 0f, 1f)
+        putVertex(builder, normal, v3.x, v3.y, v3.z, 1f, 1f)
+        putVertex(builder, normal, v4.x, v4.y, v4.z, 1f, 0f)
+        quads.add(builder.bakeQuad())
     }
 
     private fun putVertex(
         builder: VertexConsumer, normal: Vec3, x: Double, y: Double, z: Double, u: Float, v: Float
     ) {
-        val iu = sprite.getU(u.toDouble())
-        val iv = sprite.getV(v.toDouble())
-        builder.vertex(x, y, z).uv(iu, iv).uv2(0, 0).color(colorR, colorG, colorB, colorA)
-            .normal(normal.x().toFloat(), normal.y().toFloat(), normal.z().toFloat()).endVertex()
+        val iu = sprite.getU(u)
+        val iv = sprite.getV(v)
+        builder
+            .addVertex(x.toFloat(), y.toFloat(), z.toFloat())
+            .setUv(iu, iv)
+            .setUv2(0, 0)
+            .setColor(colorR, colorG, colorB, colorA)
+            .setNormal(normal.x().toFloat(), normal.y().toFloat(), normal.z().toFloat())
     }
 
     fun v(x: Double, y: Double, z: Double): Vec3 {

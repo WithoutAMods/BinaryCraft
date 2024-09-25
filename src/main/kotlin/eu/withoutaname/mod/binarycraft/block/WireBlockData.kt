@@ -2,9 +2,10 @@ package eu.withoutaname.mod.binarycraft.block
 
 import eu.withoutaname.mod.binarycraft.logic.ConnectionType
 import net.minecraft.core.Direction
+import net.minecraft.core.HolderLookup
 import net.minecraft.nbt.CompoundTag
 import net.minecraft.nbt.ListTag
-import net.minecraftforge.common.util.INBTSerializable
+import net.neoforged.neoforge.common.util.INBTSerializable
 
 
 class WireBlockData : INBTSerializable<CompoundTag> {
@@ -34,20 +35,20 @@ class WireBlockData : INBTSerializable<CompoundTag> {
         levelData[level].setConnection(side, connectionType, value)
     }
 
-    override fun serializeNBT(): CompoundTag {
+    override fun serializeNBT(registries: HolderLookup.Provider): CompoundTag {
         val tag = CompoundTag()
         tag.putInt("level", level)
         tag.putBoolean("wireAbove", wireAbove)
         tag.putIntArray("neighbourLevels", neighbourLevels)
         val levelDataTag = ListTag()
         for (level in levelData) {
-            levelDataTag.add(level.serializeNBT())
+            levelDataTag.add(level.serializeNBT(registries))
         }
         tag.put("levelData", levelDataTag)
         return tag
     }
 
-    override fun deserializeNBT(nbt: CompoundTag) {
+    override fun deserializeNBT(registries: HolderLookup.Provider, nbt: CompoundTag) {
         level = nbt.getInt("level").coerceAtLeast(1).coerceAtMost(4)
         wireAbove = nbt.getBoolean("wireAbove")
         val neighbourHeightsNew = nbt.getIntArray("neighbourLevels")
@@ -63,7 +64,7 @@ class WireBlockData : INBTSerializable<CompoundTag> {
         }
         val levelDataTag = nbt.getList("levelData", 10)
         for (i in 0 until minOf(levelDataTag.size, levelData.size)) {
-            levelData[i].deserializeNBT(levelDataTag.getCompound(i))
+            levelData[i].deserializeNBT(registries, levelDataTag.getCompound(i))
         }
         for (i in levelDataTag.size until levelData.size) {
             levelData[i].clear()
@@ -106,14 +107,14 @@ class WireBlockData : INBTSerializable<CompoundTag> {
             isSimple = shouldBeSimple
         }
 
-        override fun serializeNBT(): CompoundTag {
+        override fun serializeNBT(registries: HolderLookup.Provider): CompoundTag {
             val tag = CompoundTag()
             tag.putBoolean("isSimple", isSimple)
             tag.putIntArray("sideData", sideData)
             return tag
         }
 
-        override fun deserializeNBT(nbt: CompoundTag) {
+        override fun deserializeNBT(registries: HolderLookup.Provider, nbt: CompoundTag) {
             isSimple = nbt.getBoolean("isSimple")
             val intArray = nbt.getIntArray("sideData")
             if (intArray.size == 4) {

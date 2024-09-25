@@ -1,8 +1,8 @@
 package eu.withoutaname.mod.binarycraft.datagen
 
 import net.minecraft.data.DataProvider
-import net.minecraftforge.data.event.GatherDataEvent
-import thedarkcolour.kotlinforforge.forge.MOD_BUS
+import net.neoforged.neoforge.data.event.GatherDataEvent
+import thedarkcolour.kotlinforforge.neoforge.forge.MOD_BUS
 
 object DataGenerators {
 

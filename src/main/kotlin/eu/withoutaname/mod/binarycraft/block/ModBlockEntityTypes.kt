@@ -1,16 +1,16 @@
 package eu.withoutaname.mod.binarycraft.block
 
 import eu.withoutaname.mod.binarycraft.BinaryCraft
+import net.minecraft.core.registries.BuiltInRegistries
 import net.minecraft.world.level.block.entity.BlockEntityType
-import net.minecraftforge.registries.DeferredRegister
-import net.minecraftforge.registries.ForgeRegistries
-import thedarkcolour.kotlinforforge.forge.registerObject
+import net.neoforged.neoforge.registries.DeferredRegister
+import thedarkcolour.kotlinforforge.neoforge.forge.getValue
 
 object ModBlockEntityTypes {
     val REGISTRY: DeferredRegister<BlockEntityType<*>> =
-        DeferredRegister.create(ForgeRegistries.BLOCK_ENTITY_TYPES, BinaryCraft.ID)
+        DeferredRegister.create(BuiltInRegistries.BLOCK_ENTITY_TYPE, BinaryCraft.ID)
 
-    val WIRE: BlockEntityType<WireBlockEntity> by REGISTRY.registerObject("wire") {
+    val WIRE: BlockEntityType<WireBlockEntity> by REGISTRY.register("wire") {->
         BlockEntityType.Builder.of(::WireBlockEntity, ModBlocks.WIRE).build(null)
     }
 }

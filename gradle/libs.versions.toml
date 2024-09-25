@@ -1,24 +1,33 @@
 [versions]
-minecraft = "1.20.4"
-minecraftRange = "[1.20.4,1.21)"
-neo = "20.4.190"
-neoPlugin = "7.0.96"
-neoRange = "[20.4,)"
-loader = "4.10.0"
-loaderRange = "[4,)"
-mappings = "2024.02.25"
+minecraft = "1.21.1"
+minecraft-range = "[1.21.1,1.22)"
+
+neo = "21.1.61"
+neo-range = "[21.1,)"
+neo-plugin = "1.0.17"
+
+kotlinForForge = "5.5.0"
+kotlinForForge-range = "[5.5,)"
+
+parchment-minecraft = "1.21"
+parchment-mappings = "2024.07.28"
+
 mod = "0.1.0"
-packFormat = "15"
-kotlin = "1.9.0"
-junit = "5.10.0"
-mockk = "1.13.5"
+packFormat = "34"
+
+kotlin = "2.0.20"
+junit = "5.11.0"
+mockk = "1.13.12"
 
 [libraries]
 neo = { module = "net.neoforged:neoforge", version.ref = "neo" }
-kotlinforforge = { module = "thedarkcolour:kotlinforforge", version.ref = "loader" }
+
+kotlinforforge = { module = "thedarkcolour:kotlinforforge-neoforge", version.ref = "kotlinForForge" }
+
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
 mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
-neo-userdev = { id = "net.neoforged.gradle.userdev", version.ref = "neoPlugin" }
+
+neo-moddev = { id = "net.neoforged.moddev", version.ref = "neo-plugin" }

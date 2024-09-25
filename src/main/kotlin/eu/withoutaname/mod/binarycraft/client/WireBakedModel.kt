@@ -17,9 +17,9 @@ import net.minecraft.world.inventory.InventoryMenu
 import net.minecraft.world.item.DyeColor
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.level.block.state.BlockState
-import net.minecraftforge.client.ChunkRenderTypeSet
-import net.minecraftforge.client.model.IDynamicBakedModel
-import net.minecraftforge.client.model.data.ModelData
+import net.neoforged.neoforge.client.ChunkRenderTypeSet
+import net.neoforged.neoforge.client.model.IDynamicBakedModel
+import net.neoforged.neoforge.client.model.data.ModelData
 import kotlin.math.max
 import kotlin.math.min
 
@@ -32,8 +32,8 @@ private fun cableOffset(i: Int) = cableStart + (cableThickness + cableSpacing) *
 
 class WireBakedModel(private val overrides: ItemOverrides) : IDynamicBakedModel {
     companion object {
-        private val blankTexture = ResourceLocation(BinaryCraft.ID, "block/blank")
-        private val gridTexture = ResourceLocation(BinaryCraft.ID, "block/grid")
+        private val blankTexture = ResourceLocation.fromNamespaceAndPath(BinaryCraft.ID, "block/blank")
+        private val gridTexture = ResourceLocation.fromNamespaceAndPath(BinaryCraft.ID, "block/grid")
         val blank: TextureAtlasSprite by lazy {
             Minecraft.getInstance().getTextureAtlas(InventoryMenu.BLOCK_ATLAS).apply(blankTexture)
         }

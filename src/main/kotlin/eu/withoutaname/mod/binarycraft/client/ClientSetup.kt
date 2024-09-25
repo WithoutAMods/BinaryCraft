@@ -1,7 +1,7 @@
 package eu.withoutaname.mod.binarycraft.client
 
-import net.minecraftforge.client.event.ModelEvent.RegisterGeometryLoaders
-import thedarkcolour.kotlinforforge.forge.MOD_BUS
+import net.neoforged.neoforge.client.event.ModelEvent
+import thedarkcolour.kotlinforforge.neoforge.forge.MOD_BUS
 
 object ClientSetup {
 
@@ -9,7 +9,7 @@ object ClientSetup {
         MOD_BUS.addListener(::modelInit)
     }
 
-    private fun modelInit(event: RegisterGeometryLoaders) {
+    private fun modelInit(event: ModelEvent.RegisterGeometryLoaders) {
         WireModelLoader.register(event)
     }
 }
