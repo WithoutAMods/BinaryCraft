@@ -1,0 +1,20 @@
+{
+  "block.binarycraft.wire": "Wire",
+  "item.binarycraft.wire_black": "Black Wire",
+  "item.binarycraft.wire_blue": "Blue Wire",
+  "item.binarycraft.wire_brown": "Brown Wire",
+  "item.binarycraft.wire_cyan": "Cyan Wire",
+  "item.binarycraft.wire_gray": "Gray Wire",
+  "item.binarycraft.wire_green": "Green Wire",
+  "item.binarycraft.wire_light_blue": "Light Blue Wire",
+  "item.binarycraft.wire_light_gray": "Light Gray Wire",
+  "item.binarycraft.wire_lime": "Lime Wire",
+  "item.binarycraft.wire_magenta": "Magenta Wire",
+  "item.binarycraft.wire_orange": "Orange Wire",
+  "item.binarycraft.wire_pink": "Pink Wire",
+  "item.binarycraft.wire_purple": "Purple Wire",
+  "item.binarycraft.wire_red": "Red Wire",
+  "item.binarycraft.wire_white": "White Wire",
+  "item.binarycraft.wire_yellow": "Yellow Wire",
+  "itemGroup.binarycraft": "BinaryCraft"
+}
