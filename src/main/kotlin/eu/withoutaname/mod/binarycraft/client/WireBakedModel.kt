@@ -4,6 +4,7 @@ import eu.withoutaname.mod.binarycraft.BinaryCraft
 import eu.withoutaname.mod.binarycraft.block.WireBlock
 import eu.withoutaname.mod.binarycraft.block.WireBlockData
 import eu.withoutaname.mod.binarycraft.logic.ConnectionType
+import eu.withoutaname.mod.binarycraft.util.*
 import net.minecraft.client.Minecraft
 import net.minecraft.client.renderer.RenderType
 import net.minecraft.client.renderer.block.model.BakedQuad
@@ -23,13 +24,6 @@ import net.neoforged.neoforge.client.model.data.ModelData
 import kotlin.math.max
 import kotlin.math.min
 
-
-private fun yOffset(level: Int) = level * 4 / 16.0
-private const val cableThickness = .5 / 16.0
-private const val cableSpacing = .25 / 16.0
-private const val cableStart = .5 - (cableThickness * 16 + cableSpacing * 15) / 2
-private fun cableOffset(i: Int) = cableStart + (cableThickness + cableSpacing) * i
-
 class WireBakedModel(private val overrides: ItemOverrides) : IDynamicBakedModel {
     companion object {
         private val blankTexture = ResourceLocation.fromNamespaceAndPath(BinaryCraft.ID, "block/blank")
@@ -46,11 +40,7 @@ class WireBakedModel(private val overrides: ItemOverrides) : IDynamicBakedModel 
     private val gridQuadsSideCache by lazy { Array(4) { getGridQuadsSides(it) } }
 
     private fun getGridQuads(level: Int) = BakedModelHelper.buildQuads(grid) {
-        val pillarWidth = 1 / 16.0
-        val platformHeight = 4 / 16.0
-        val platformThickness = .5 / 16.0
-        val pillarHeight = platformHeight - platformThickness
-        val offset = level * platformHeight
+        val offset = verticalCableOffset(level)
 
         gridColor()
 
@@ -129,11 +119,7 @@ class WireBakedModel(private val overrides: ItemOverrides) : IDynamicBakedModel 
     }
 
     private fun getGridQuadsSides(level: Int): Array<MutableList<BakedQuad>> {
-        val pillarWidth = 1 / 16.0
-        val platformHeight = 4 / 16.0
-        val platformThickness = .5 / 16.0
-        val pillarHeight = platformHeight - platformThickness
-        val offset = level * platformHeight
+        val offset = verticalCableOffset(level)
 
         return arrayOf(
             BakedModelHelper.buildQuads(blank) {
@@ -263,7 +249,7 @@ class WireBakedModel(private val overrides: ItemOverrides) : IDynamicBakedModel 
         val data = extraData[WireBlock.DATA] ?: WireBlockData()
 
         if (renderType == RenderType.cutout()) {
-            for (i in 0 until if (data.wireAbove) 4 else data.level - 1) {
+            for (i in 0 until if (data.wireAbove) 4 else data.numLevels - 1) {
                 addAll(gridQuadsCache[i])
             }
             return@buildQuads
@@ -272,9 +258,9 @@ class WireBakedModel(private val overrides: ItemOverrides) : IDynamicBakedModel 
         when (side) {
             DOWN -> {}
             UP -> {}
-            null -> for (i in 0 until data.level) addWireQuads(i, data.levelData[i], data.neighbourLevels)
+            null -> for (i in 0 until data.numLevels) addWireQuads(i, data.levelData[i], data.neighbourLevels)
             else -> {
-                for (i in 0 until if (data.wireAbove) 4 else data.level - 1) {
+                for (i in 0 until if (data.wireAbove) 4 else data.numLevels - 1) {
                     val rotation = side.get2DDataValue()
                     if (data.neighbourLevels[rotation] <= i) {
                         addAll(gridQuadsSideCache[i][rotation])
@@ -301,15 +287,15 @@ class WireBakedModel(private val overrides: ItemOverrides) : IDynamicBakedModel 
             val direction = from2DDataValue(rot)
             if (data.hasConnection(direction, ConnectionType.Simple)) {
                 addCube(
-                    v(start, yOffset(level), start),
-                    v(start + cableThickness, yOffset(level) + cableThickness, 1.0),
+                    v(start, verticalCableOffset(level), start),
+                    v(start + cableThickness, verticalCableOffset(level) + cableThickness, 1.0),
                     rot
                 )
                 val neighbourLevel = neighbourLevels[rot]
                 if (neighbourLevel < level) {
                     addCube(
-                        v(start, yOffset(neighbourLevel), 1.0),
-                        v(start + cableThickness, yOffset(level) + cableThickness, 1 + cableThickness),
+                        v(start, verticalCableOffset(neighbourLevel), 1.0),
+                        v(start + cableThickness, verticalCableOffset(level) + cableThickness, 1 + cableThickness),
                         rot
                     )
                 }
@@ -327,7 +313,7 @@ class WireBakedModel(private val overrides: ItemOverrides) : IDynamicBakedModel 
 
         for (i in 0..15) {
             color(DyeColor.byId(i))
-            val offset = cableOffset(i)
+            val offset = horizontalCableOffset(i)
             addNorthSouthWireQuads(
                 offset,
                 level,
@@ -359,9 +345,10 @@ class WireBakedModel(private val overrides: ItemOverrides) : IDynamicBakedModel 
             east || west -> offset + cableThickness
             else -> cableStart
         }
+        val yOffset = verticalCableOffset(level)
         addCube(
-            v(offset, yOffset(level), start),
-            v(offset + cableThickness, yOffset(level) + cableThickness, end)
+            v(offset, yOffset, start),
+            v(offset + cableThickness, yOffset + cableThickness, end)
         )
     }
 
@@ -386,37 +373,38 @@ class WireBakedModel(private val overrides: ItemOverrides) : IDynamicBakedModel 
         val start = when (firstIndex) {
             -1 -> .0
             16 -> 1 - cableStart
-            else -> cableOffset(firstIndex)
+            else -> horizontalCableOffset(firstIndex)
         }
         val end = when (lastIndex) {
             -1 -> cableStart
             16 -> 1.0
-            else -> cableOffset(lastIndex) + cableThickness
+            else -> horizontalCableOffset(lastIndex) + cableThickness
         }
 
+        val yOffset = verticalCableOffset(level)
         if (fistObstruction == null || lastObstruction == null) {
             addCube(
-                v(start, yOffset(level), offset),
-                v(end, yOffset(level) + cableThickness, offset + cableThickness)
+                v(start, yOffset, offset),
+                v(end, yOffset + cableThickness, offset + cableThickness)
             )
             return
         }
 
         addCube(
-            v(start, yOffset(level), offset),
-            v(cableOffset(fistObstruction), yOffset(level) + cableThickness, offset + cableThickness)
+            v(start, yOffset, offset),
+            v(horizontalCableOffset(fistObstruction), yOffset + cableThickness, offset + cableThickness)
         )
         addCube(
-            v(cableOffset(fistObstruction) - cableThickness, yOffset(level) + cableThickness, offset),
+            v(horizontalCableOffset(fistObstruction) - cableThickness, yOffset + cableThickness, offset),
             v(
-                cableOffset(lastObstruction) + 2 * cableThickness,
-                yOffset(level) + 2 * cableThickness,
+                horizontalCableOffset(lastObstruction) + 2 * cableThickness,
+                yOffset + 2 * cableThickness,
                 offset + cableThickness
             )
         )
         addCube(
-            v(cableOffset(lastObstruction) + cableThickness, yOffset(level), offset),
-            v(end, yOffset(level) + cableThickness, offset + cableThickness)
+            v(horizontalCableOffset(lastObstruction) + cableThickness, yOffset, offset),
+            v(end, yOffset + cableThickness, offset + cableThickness)
         )
     }
 
@@ -463,10 +451,10 @@ class WireBakedModel(private val overrides: ItemOverrides) : IDynamicBakedModel 
             if (!(data hasBit i)) continue
 
             color(DyeColor.byId(i))
-            val offset = cableOffset(if (rotation < 2) i else 15 - i)
+            val offset = horizontalCableOffset(if (rotation < 2) i else 15 - i)
             addCube(
-                v(offset, yOffset(neighbourLevel), 1.0),
-                v(offset + cableThickness, yOffset(level) + cableThickness, 1 + cableThickness),
+                v(offset, verticalCableOffset(neighbourLevel), 1.0),
+                v(offset + cableThickness, verticalCableOffset(level) + cableThickness, 1 + cableThickness),
                 rotation
             )
         }

@@ -9,22 +9,21 @@ import net.neoforged.neoforge.common.util.INBTSerializable
 
 
 class WireBlockData : INBTSerializable<CompoundTag> {
-    var level = 1
+    var numLevels = 1
         private set
     var wireAbove = false
-        private set
     var neighbourLevels = IntArray(4)
         private set
     val levelData = Array(4) { LevelData() }
 
     fun addLevel() {
-        if (level == 4) throw IllegalStateException("Cannot add more than 4 levels")
-        level++
+        if (numLevels == 4) throw IllegalStateException("Cannot add more than 4 levels")
+        numLevels++
     }
 
     fun removeLevel() {
-        if (level == 1) throw IllegalStateException("Cannot remove level 1")
-        levelData[--level].clear()
+        if (numLevels == 1) throw IllegalStateException("Cannot remove level 1")
+        levelData[--numLevels].clear()
     }
 
     fun hasConnection(level: Int, side: Direction, connectionType: ConnectionType): Boolean {
@@ -35,9 +34,15 @@ class WireBlockData : INBTSerializable<CompoundTag> {
         levelData[level].setConnection(side, connectionType, value)
     }
 
+    fun addConnection(level: Int, side: Direction, connectionType: ConnectionType): Boolean {
+        if (levelData[level].hasConnection(side, connectionType)) return false
+        levelData[level].setConnection(side, connectionType, true)
+        return true
+    }
+
     override fun serializeNBT(registries: HolderLookup.Provider): CompoundTag {
         val tag = CompoundTag()
-        tag.putInt("level", level)
+        tag.putInt("numLevels", numLevels)
         tag.putBoolean("wireAbove", wireAbove)
         tag.putIntArray("neighbourLevels", neighbourLevels)
         val levelDataTag = ListTag()
@@ -49,7 +54,7 @@ class WireBlockData : INBTSerializable<CompoundTag> {
     }
 
     override fun deserializeNBT(registries: HolderLookup.Provider, nbt: CompoundTag) {
-        level = nbt.getInt("level").coerceAtLeast(1).coerceAtMost(4)
+        numLevels = nbt.getInt("numLevels").coerceAtLeast(1).coerceAtMost(4)
         wireAbove = nbt.getBoolean("wireAbove")
         val neighbourHeightsNew = nbt.getIntArray("neighbourLevels")
         if (neighbourHeightsNew.size == 4) {

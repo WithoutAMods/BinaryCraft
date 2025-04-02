@@ -1,5 +1,6 @@
 package eu.withoutaname.mod.binarycraft.block
 
+import eu.withoutaname.mod.binarycraft.util.*
 import net.minecraft.core.BlockPos
 import net.minecraft.core.HolderLookup
 import net.minecraft.nbt.CompoundTag
@@ -16,7 +17,7 @@ import net.neoforged.neoforge.client.model.data.ModelData
 import kotlin.math.min
 
 class WireBlockEntity(pos: BlockPos, state: BlockState) : BlockEntity(ModBlockEntityTypes.WIRE, pos, state) {
-    private val data = WireBlockData()
+    val data = WireBlockData()
 
     override fun loadAdditional(tag: CompoundTag, registries: HolderLookup.Provider) {
         super.loadAdditional(tag, registries)
@@ -62,7 +63,7 @@ class WireBlockEntity(pos: BlockPos, state: BlockState) : BlockEntity(ModBlockEn
 
     fun getShape(): VoxelShape {
         if (data.wireAbove) return shapes[4]
-        return shapes[data.level - 1]
+        return shapes[data.numLevels - 1]
     }
 
     companion object {
@@ -77,11 +78,7 @@ class WireBlockEntity(pos: BlockPos, state: BlockState) : BlockEntity(ModBlockEn
         }
 
         private fun getGridShape(level: Int): VoxelShape {
-            val pillarWidth = 1 / 16.0
-            val platformHeight = 4 / 16.0
-            val platformThickness = .5 / 16.0
-            val pillarHeight = platformHeight - platformThickness
-            val offset = level * platformHeight
+            val offset = verticalCableOffset(level)
             return Shapes.or(
                 // Platform
                 Shapes.box(0.0, offset + pillarHeight, 0.0, 1.0, offset + platformHeight, 1.0),
@@ -97,12 +94,7 @@ class WireBlockEntity(pos: BlockPos, state: BlockState) : BlockEntity(ModBlockEn
         }
 
         private fun getWireShape(level: Int): VoxelShape {
-            val platformHeight = 4 / 16.0
-            val offset = level * platformHeight
-            val cableThickness = .5 / 16.0
-            val cableSpacing = .25 / 16.0
-            val cableStart = .5 - (cableThickness * 16 + cableSpacing * 15) / 2
-
+            val offset = verticalCableOffset(level)
             return Shapes.or(
                 Shapes.box(0.0, offset, cableStart, 1.0, offset + cableThickness, 1.0 - cableStart),
                 Shapes.box(cableStart, offset, 0.0, 1.0 - cableStart, offset + cableThickness, 1.0)

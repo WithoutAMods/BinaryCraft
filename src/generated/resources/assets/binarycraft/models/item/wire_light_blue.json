@@ -1,0 +1,6 @@
+{
+  "parent": "binarycraft:block/wire_inventory",
+  "textures": {
+    "texture": "binarycraft:block/color/light_blue"
+  }
+}

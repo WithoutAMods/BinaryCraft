@@ -14,6 +14,7 @@ object DataGenerators {
         val exFileHelper = event.existingFileHelper
         event.generator.run {
             addProvider(event.includeClient(), DataProvider.Factory { BlockStates(it, exFileHelper) })
+            addProvider(event.includeClient(), DataProvider.Factory { ItemModels(it, exFileHelper) })
             addProvider(event.includeClient(), DataProvider.Factory { Language(it) })
         }
     }
