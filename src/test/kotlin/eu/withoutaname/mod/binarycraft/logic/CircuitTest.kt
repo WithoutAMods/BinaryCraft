@@ -32,7 +32,7 @@ class CircuitTest {
     fun testInputGate() {
         val circuit = CircuitImpl()
         val input = InputGateBehavior(OutputState.LOW)
-        val connection = circuit.createConnection()
+        val connection = ConnectionId(0)
 
         val inputId = circuit.addGate(input)
         circuit.setGateOutput(inputId, 0, connection)
@@ -57,7 +57,7 @@ class CircuitTest {
         val circuit = CircuitImpl()
         val inputA = InputGateBehavior(OutputState.LOW)
         val inputB = InputGateBehavior(OutputState.LOW)
-        val connection = circuit.createConnection()
+        val connection = ConnectionId(0)
 
         val inputAId = circuit.addGate(inputA)
         circuit.setGateOutput(inputAId, 0, connection)
@@ -114,8 +114,8 @@ class CircuitTest {
     fun testWithRepeaterGate() {
         val circuit = CircuitImpl()
         val input = InputGateBehavior(OutputState.LOW)
-        val inConnection = circuit.createConnection()
-        val outConnection = circuit.createConnection()
+        val inConnection = ConnectionId(0)
+        val outConnection = ConnectionId(1)
 
         val inputId = circuit.addGate(input)
         circuit.setGateOutput(inputId, 0, inConnection)
@@ -133,8 +133,8 @@ class CircuitTest {
     fun testWithTwoParallelRepeaterGates() {
         val circuit = CircuitImpl()
         val input = InputGateBehavior(OutputState.LOW)
-        val inConnection = circuit.createConnection()
-        val outConnection = circuit.createConnection()
+        val inConnection = ConnectionId(0)
+        val outConnection = ConnectionId(1)
 
         val inputId = circuit.addGate(input)
         circuit.setGateOutput(inputId, 0, inConnection)
@@ -155,7 +155,7 @@ class CircuitTest {
     fun testCyclicRepeaterGate() {
         val circuit = CircuitImpl()
         val input = InputGateBehavior(OutputState.LOW)
-        val connection = circuit.createConnection()
+        val connection = ConnectionId(0)
 
         val inputId = circuit.addGate(input)
         circuit.setGateOutput(inputId, 0, connection)

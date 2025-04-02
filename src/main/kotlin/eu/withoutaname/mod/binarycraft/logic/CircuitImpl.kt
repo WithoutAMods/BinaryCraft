@@ -1,20 +1,14 @@
 package eu.withoutaname.mod.binarycraft.logic
 
 class CircuitImpl : Circuit {
-    private val connections = IdList<Connection>()
+    private val connections = mutableMapOf<ConnectionId, Connection>()
     private val gates = IdList<Gate>()
 
-    override fun createConnection(): ConnectionId {
-        val id = connections.add(Connection())
-        return ConnectionId(id)
+    private fun getOrCreateConnection(connectionId: ConnectionId): Connection {
+        return connections.computeIfAbsent(connectionId) { Connection() }
     }
 
-    override fun removeConnection(connection: ConnectionId) {
-        val removed = connections.remove(connection.id)
-        removed.disconnectEverything()
-    }
-
-    override fun getState(connection: ConnectionId) = connections[connection.id].state
+    override fun getState(connection: ConnectionId) = getOrCreateConnection(connection).state
 
     override fun addGate(gateBehavior: GateBehavior): GateId {
         val id = gates.add(Gate(gateBehavior))
@@ -27,11 +21,11 @@ class CircuitImpl : Circuit {
     }
 
     override fun setGateInput(gateId: GateId, inputIndex: Int, connection: ConnectionId?) {
-        gates[gateId].setInput(inputIndex, connection?.let { connections[it.id] })
+        gates[gateId].setInput(inputIndex, connection?.let { getOrCreateConnection(it) })
     }
 
     override fun setGateOutput(gateId: GateId, outputIndex: Int, connection: ConnectionId?) {
-        gates[gateId].setOutput(outputIndex, connection?.let { connections[it.id] })
+        gates[gateId].setOutput(outputIndex, connection?.let { getOrCreateConnection(it) })
     }
 
     private data class ConnectionData(
